@@ -1,4 +1,4 @@
-const MARGIN = { LEFT: 20, RIGHT: 100, TOP: 50, BOTTOM: 100 }
+const MARGIN = { LEFT: 100, RIGHT: 100, TOP: 50, BOTTOM: 100 }
 const WIDTH = 800 - MARGIN.LEFT - MARGIN.RIGHT
 const HEIGHT = 500 - MARGIN.TOP - MARGIN.BOTTOM
 
@@ -6,44 +6,6 @@ const svg = d3.select("#chart-area").append("svg")
   .attr("width", WIDTH + MARGIN.LEFT + MARGIN.RIGHT)
   .attr("height", HEIGHT + MARGIN.TOP + MARGIN.BOTTOM)
 
-//   const tooltip = svg.append("g")
-//   .style("pointer-events", "none");
-
-// function pointermoved(event) {
-// const i = d3.bisectCenter(X, xScale.invert(d3.pointer(event)[0]));
-// tooltip.style("display", null);
-// tooltip.attr("transform", `translate(${xScale(X[i])},${yScale(Y[i])})`);
-
-// const path = tooltip.selectAll("path")
-//   .data([,])
-//   .join("path")
-// 	.attr("fill", "white")
-// 	.attr("stroke", "black");
-
-// const text = tooltip.selectAll("text")
-//   .data([,])
-//   .join("text")
-//   .call(text => text
-// 	.selectAll("tspan")
-// 	.data(`${title(i)}`.split(/\n/))
-// 	.join("tspan")
-// 	  .attr("x", 0)
-// 	  .attr("y", (_, i) => `${i * 1.1}em`)
-// 	  .attr("font-weight", (_, i) => i ? null : "bold")
-// 	  .text(d => d));
-
-// const {x, y, width: w, height: h} = text.node().getBBox();
-// text.attr("transform", `translate(${-w / 2},${15 - y})`);
-// path.attr("d", `M${-w / 2 - 10},5H-5l5,-5l5,5H${w / 2 + 10}v${h + 20}h-${w + 20}z`);
-// svg.property("value", O[i]).dispatch("input", {bubbles: true});
-// }
-
-
-//   function pointerleft() {
-//     tooltip.style("display", "none");
-//     svg.node().value = null;
-//     svg.dispatch("input", {bubbles: true});
-//   }
 
 let HighData = []
 let LowData = []
@@ -62,7 +24,14 @@ const formatTime = d3.timeFormat("%Y-%m-%d")
 $("#var-select").val()
 $("#var-select").on("change", update)
 
+/**
+ * d3.bisect finds the position into which a given value can be inserted into a 
+ * sorted array while maintaining sorted order. If the value already 
+ * exists in the array, d3.bisect will find its position efficiently.
+ * https://observablehq.com/@d3/d3-bisect
+ */
 const bisectDate = d3.bisector(d => d.date).left
+
 // add the line for the first time
 g.append("path")
 	.attr("class", "line")
@@ -81,8 +50,8 @@ const xLabel = g.append("text")
 const yLabel = g.append("text")
 	.attr("class", "y axisLabel")
 	.attr("transform", "rotate(-90)")
-	.attr("y", -60)
-	.attr("x", -170)
+	.attr("y", -80)
+	.attr("x", -180)
 	.attr("font-size", "20px")
 	.attr("text-anchor", "middle")
 	.text("Open")
@@ -121,6 +90,8 @@ $("#date-slider").slider({
 		update()
 	}
 })
+
+
 
 d3.json("https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=AAPL&apikey=R6DXIM881UZRQGUU").then(data => {
 	// prepare and clean data
@@ -162,7 +133,7 @@ function update() {
 	}else if (yValue == 'close'){
 		filteredData =  CloseData
 	}else if(yValue == 'low'){
-		filteredData = CloseData
+		filteredData = LowData
 	}
 
 	console.log(filteredData)
@@ -180,18 +151,25 @@ function update() {
 		d3.min(dataTimeFiltered, d => d.y_val) / 1.005, 
 		d3.max(dataTimeFiltered, d => d.y_val) * 1.005
 	])
-	console.log(d3.min(filteredData, d => d.y_val))
-	console.log(d3.max(filteredData, d => d.y_val))
+	console.log(d3.min(dataTimeFiltered, d => d.y_val))
+	console.log(d3.max(dataTimeFiltered, d => d.y_val))
 
 	// update axes
+	// const formatSi = d3.format(".2s")
 	xAxisCall.scale(x)
 	xAxis.transition(t).call(xAxisCall)
 	yAxisCall.scale(y)
 	yAxis.transition(t).call(yAxisCall)
 
+	
 	// clear old tooltips
 	d3.select(".focus").remove()
 	d3.select(".overlay").remove()
+
+	RevArray = dataTimeFiltered.reverse()
+
+
+
 
 	/******************************** Tooltip Code ********************************/
 
@@ -226,11 +204,14 @@ function update() {
 
 	function mousemove() {
 		const x0 = x.invert(d3.mouse(this)[0])
-		const i = bisectDate(dataTimeFiltered, x0, 1)
+		const i = bisectDate(RevArray, x0, 1)
+		console.log(i)
+
 		console.log(x0)
-		const d0 = dataTimeFiltered[i - 1]
-		console.log(d0)
-		const d1 = dataTimeFiltered[i]
+		const d0 = RevArray[i - 1]
+		console.log(RevArray[49])
+		let j = Number(i)
+		const d1 = RevArray[i]
 		console.log(d1)
 		console.log(d0)
 		const d = x0 - d0.date > d1.date - x0 ? d1 : d0
@@ -241,9 +222,11 @@ function update() {
 		focus.select(".x-hover-line").attr("y2", HEIGHT - y(d.y_val))
 		focus.select(".y-hover-line").attr("x2", -x(d.date))
 	}
+
+	
 	
 	/******************************** Tooltip Code ********************************/
-
+	
 	// Path generator
 	line = d3.line()
 		.x(d => x(d.date))
@@ -253,6 +236,17 @@ function update() {
 	g.select(".line")
 		.transition(t)
 		.attr("d", line(dataTimeFiltered))
+
+		// Update y-axis label
+	const newText = (yValue === "high") ? "High" 
+		: (yValue === "low") ? "Low" 
+			: (yValue === "volume") ? "Volume"
+				:(yValue === "open") ? "Open"
+					:(yValue === "close") ? "Close"
+						: " "
+
+	yLabel.text(newText)
+
 
 }
 
