@@ -56,3 +56,7 @@
   stroke-width: 3px;
   stroke: grey;
 }
+
+.container .col-md-12{
+  width: 100%
+}

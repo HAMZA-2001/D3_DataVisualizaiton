@@ -1,10 +1,12 @@
 const MARGIN = { LEFT: 100, RIGHT: 100, TOP: 50, BOTTOM: 100 }
-const WIDTH = 800 - MARGIN.LEFT - MARGIN.RIGHT
-const HEIGHT = 500 - MARGIN.TOP - MARGIN.BOTTOM
+const WIDTH = 1600 - MARGIN.LEFT - MARGIN.RIGHT
+const HEIGHT = 900 - MARGIN.TOP - MARGIN.BOTTOM
 
 const svg = d3.select("#chart-area").append("svg")
   .attr("width", WIDTH + MARGIN.LEFT + MARGIN.RIGHT)
   .attr("height", HEIGHT + MARGIN.TOP + MARGIN.BOTTOM)
+  .attr("id", "mySvg")
+
 
 
 let HighData = []
@@ -13,6 +15,7 @@ let OpenData = []
 let CloseData = []
 let AjustedCloseData = []
 let VolumeData = []
+let filteredData;
 
 const g = svg.append("g")
   .attr("transform", `translate(${MARGIN.LEFT}, ${MARGIN.TOP})`)
@@ -21,7 +24,8 @@ const g = svg.append("g")
 const parseDate = d3.timeParse("%Y-%m-%d")
 const formatTime = d3.timeFormat("%Y-%m-%d")
 
-$("#var-select").val()
+let options = $("#var-select").val()
+
 $("#var-select").on("change", update)
 
 /**
@@ -46,15 +50,15 @@ const xLabel = g.append("text")
 	.attr("x", WIDTH / 2)
 	.attr("font-size", "20px")
 	.attr("text-anchor", "middle")
-	.text("Years")
+	
 const yLabel = g.append("text")
 	.attr("class", "y axisLabel")
 	.attr("transform", "rotate(-90)")
 	.attr("y", -80)
-	.attr("x", -180)
+	.attr("x", -320)
 	.attr("font-size", "20px")
 	.attr("text-anchor", "middle")
-	.text("Open")
+
 
 
 // scales
@@ -87,38 +91,44 @@ $("#date-slider").slider({
 	slide: (event, ui) => {
 		$("#dateLabel1").text(formatTime(new Date(ui.values[0])))
 		$("#dateLabel2").text(formatTime(new Date(ui.values[1])))
-		update()
+	
+		update(OpenData)
 	}
 })
 
 
+// function loadData(tick){
 
-d3.json("https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol=AAPL&apikey=R6DXIM881UZRQGUU").then(data => {
-	// prepare and clean data
-	filteredData = []
-	xValues = []
-	yValues = []
-
-	for (var key in data["Weekly Time Series"]){
-		let test = parseDate(key)
-		filteredData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['1. open'])})
-		HighData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['2. high'])})
-		LowData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['3. low'])})
-		VolumeData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['5. volume'])})
-		CloseData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['4. close'])})
-		OpenData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['1. open'])})
-		
-	}
-
-	console.log(filteredData)
+// 	d3.json("https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol="+ tick +"&apikey=R6DXIM881UZRQGUU").then(data => {
+// 		console.log(data)
+// 		// prepare and clean data
+// 		filteredData = []
+// 		xValues = []
+// 		yValues = []
 	
-	update()
-	// run the visualization for the first time
+// 		for (var key in data["Weekly Time Series"]){
+// 			let test = parseDate(key)
+// 			filteredData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['1. open'])})
+// 			HighData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['2. high'])})
+// 			LowData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['3. low'])})
+// 			VolumeData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['5. volume'])})
+// 			CloseData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['4. close'])})
+// 			OpenData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['1. open'])})
+			
+// 		}
 	
-})
+// 		console.log(filteredData)
+// 		update(ticker)
+// 	})
+	
+// }
+
 
 function update() {
+
+	
 	const t = d3.transition().duration(1000)
+	xLabel.text("Years")
 
 	const yValue = $("#var-select").val()
 	console.log(yValue)
@@ -134,6 +144,8 @@ function update() {
 		filteredData =  CloseData
 	}else if(yValue == 'low'){
 		filteredData = LowData
+	}else{
+		filteredData = OpenData
 	}
 
 	console.log(filteredData)
@@ -155,11 +167,19 @@ function update() {
 	console.log(d3.max(dataTimeFiltered, d => d.y_val))
 
 	// update axes
-	// const formatSi = d3.format(".2s")
 	xAxisCall.scale(x)
 	xAxis.transition(t).call(xAxisCall)
 	yAxisCall.scale(y)
 	yAxis.transition(t).call(yAxisCall)
+
+		line = d3.line()
+		.x(d => x(d.date))
+		.y(d => y(d.y_val))
+
+
+	g.select(".line")
+	.transition(t)
+	.attr("d", line(dataTimeFiltered))
 
 	
 	// clear old tooltips
@@ -167,9 +187,6 @@ function update() {
 	d3.select(".overlay").remove()
 
 	RevArray = dataTimeFiltered.reverse()
-
-
-
 
 	/******************************** Tooltip Code ********************************/
 
@@ -227,17 +244,7 @@ function update() {
 	
 	/******************************** Tooltip Code ********************************/
 	
-	// Path generator
-	line = d3.line()
-		.x(d => x(d.date))
-		.y(d => y(d.y_val))
-
-	// // Update our line path
-	g.select(".line")
-		.transition(t)
-		.attr("d", line(dataTimeFiltered))
-
-		// Update y-axis label
+	// Update y-axis label
 	const newText = (yValue === "high") ? "High" 
 		: (yValue === "low") ? "Low" 
 			: (yValue === "volume") ? "Volume"
@@ -247,6 +254,45 @@ function update() {
 
 	yLabel.text(newText)
 
-
 }
 
+$(":button").click(function(event){
+    var str = $("#input_ticker").val();
+	g.select(".line")
+	.attr("d", [])
+	HighData = []
+	LowData = []
+	OpenData = []
+	CloseData = []
+	AjustedCloseData = []
+	VolumeData = []
+
+
+	d3.json("https://www.alphavantage.co/query?function=TIME_SERIES_WEEKLY&symbol="+ str +"&apikey=R6DXIM881UZRQGUU").then(data => {
+		console.log(data)
+		// prepare and clean data
+		filteredData = []
+		xValues = []
+		yValues = []
+	
+		for (var key in data["Weekly Time Series"]){
+			let test = parseDate(key)
+			filteredData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['1. open'])})
+			HighData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['2. high'])})
+			LowData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['3. low'])})
+			VolumeData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['5. volume'])})
+			CloseData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['4. close'])})
+			OpenData.push({date: test, y_val: Number(data['Weekly Time Series'][key]['1. open'])})
+			
+		}
+	
+		console.log(filteredData)
+		filteredData = OpenData
+		update()
+	})
+
+	update()
+	var svg = d3.select('#mySvg');
+
+	svg.selectAll("line").remove();
+ });
